@@ -1,0 +1,13 @@
+# EdDesk WhatsApp Sender
+
+# Dependencies for this file — copy from .env.local.example
+# TWILIO_ACCOUNT_SID=
+# TWILIO_AUTH_TOKEN=
+# TWILIO_WHATSAPP_FROM=
+# LOGIN_EMAIL=
+# LOGIN_PASSWORD=
+
+node_modules
+.next
+.env.local
+*.log
