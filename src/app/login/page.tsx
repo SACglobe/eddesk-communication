@@ -5,216 +5,389 @@ import { useRouter } from "next/navigation";
 import { signInWithEmail } from "@/domains/auth/queries";
 import { createClient } from "@/lib/supabase/client";
 import BrandLogo from "@/components/BrandLogo";
+import { Eye, EyeOff, ArrowRight, MessageSquare, BarChart3, CheckCircle2 } from "lucide-react";
 
 function LoginContent() {
-    const router = useRouter();
-    const [email, setEmail] = useState("");
-    const [password, setPassword] = useState("");
-    const [error, setError] = useState<string | null>(null);
-    const [loading, setLoading] = useState(false);
-    const [showPassword, setShowPassword] = useState(false);
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
-    // If already authenticated, redirect to home
-    useEffect(() => {
-        const supabase = createClient();
-        let isMounted = true;
+  useEffect(() => {
+    const supabase = createClient();
+    let alive = true;
+    supabase.auth.getUser().then(({ data: { user }, error: e }) => {
+      if (!alive || e || !user) return;
+      router.push("/");
+    }).catch(() => {});
+    return () => { alive = false; };
+  }, [router]);
 
-        supabase.auth.getUser().then(({ data: { user }, error: userError }) => {
-            if (!isMounted) return;
-            if (userError || !user) {
-                return;
-            }
-            router.push("/");
-        }).catch((err) => {
-            console.error("getUser network error:", err);
-        });
-
-        return () => {
-            isMounted = false;
-        };
-    }, [router]);
-
-    async function handleLogin(e: React.FormEvent) {
-        e.preventDefault();
-        setError(null);
-        setLoading(true);
-
-        try {
-            const { data, error } = await signInWithEmail(email, password);
-
-            if (error) {
-                const msg = error.message || "Invalid email or password. Please try again.";
-                if (msg.includes("Failed to fetch") || msg.includes("fetch")) {
-                    setError("Connection Error: Unable to connect to Supabase authentication server. If you have an ad-blocker or Brave Shields active, please disable it for localhost or allow *.supabase.co.");
-                } else {
-                    setError(msg);
-                }
-                setLoading(false);
-                return;
-            }
-
-            router.push("/");
-        } catch (err: any) {
-            setError("Connection error: Please check your internet connection or ad-blocker.");
-            setLoading(false);
-        }
+  async function handleLogin(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+    try {
+      const { error: authErr } = await signInWithEmail(email, password);
+      if (authErr) {
+        const msg = authErr.message || "Invalid email or password.";
+        setError(msg.includes("fetch") ? "Connection error – please disable any ad-blocker." : msg);
+        setLoading(false);
+        return;
+      }
+      router.push("/");
+    } catch {
+      setError("Connection error – please check your internet connection.");
+      setLoading(false);
     }
+  }
 
-    return (
-        <div className="min-h-screen flex flex-col items-center justify-center bg-gray-50 px-4 relative overflow-hidden pb-16">
+  return (
+    <div className="min-h-screen w-full flex bg-[#fafafa]">
 
-            {/* Subtle background decoration */}
-            <div
+      {/* ═══════════ LEFT BRAND PANEL ═══════════ */}
+      <div className="hidden lg:flex w-[48%] xl:w-[52%] flex-col relative overflow-hidden bg-white">
+
+        {/* Soft brand-tinted background */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            background: "radial-gradient(ellipse at 80% 10%, rgba(245,73,39,0.07) 0%, transparent 55%), radial-gradient(ellipse at 10% 90%, rgba(255,107,82,0.05) 0%, transparent 50%)",
+          }}
+        />
+
+        {/* Subtle dot grid */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            backgroundImage: "radial-gradient(rgba(245,73,39,0.08) 1px, transparent 1px)",
+            backgroundSize: "28px 28px",
+          }}
+        />
+
+        {/* Red accent bar — left edge */}
+        <div
+          className="absolute left-0 top-0 bottom-0 w-1 pointer-events-none"
+          style={{ background: "linear-gradient(180deg, #F54927 0%, #FF6B52 100%)" }}
+        />
+
+        {/* Content */}
+        <div className="relative z-10 flex flex-col h-full p-10 xl:p-14">
+
+          {/* Logo on white — perfectly visible */}
+          <div>
+            <BrandLogo variant="full" size="lg" className="justify-start" />
+          </div>
+
+          {/* Center hero text */}
+          <div className="flex-1 flex flex-col justify-center mt-12 mb-8">
+
+            {/* Pill badge */}
+            <div className="flex mb-6">
+              <span
+                className="inline-flex items-center gap-2 rounded-full text-[11px] font-bold tracking-widest uppercase px-3.5 py-1.5"
                 style={{
-                    position: 'absolute', inset: 0, zIndex: 0,
-                    background: 'radial-gradient(ellipse at 60% 0%, rgba(245,73,39,0.06) 0%, transparent 60%), radial-gradient(ellipse at 0% 100%, rgba(245,73,39,0.04) 0%, transparent 50%)',
-                    pointerEvents: 'none',
+                  background: "rgba(245,73,39,0.09)",
+                  border: "1px solid rgba(245,73,39,0.2)",
+                  color: "#F54927",
                 }}
-            />
+              >
+                <span className="size-1.5 rounded-full bg-[#F54927] animate-pulse inline-block" />
+                WhatsApp Communication Suite
+              </span>
+            </div>
 
-            {/* Login Card */}
-            <div
-                className="relative z-10 w-full max-w-sm bg-white rounded-2xl border border-gray-100 p-10"
-                style={{ boxShadow: '0 4px 32px 0 rgba(0,0,0,0.07)' }}
+            <h1
+              className="font-bold leading-[1.12] mb-5 max-w-md"
+              style={{ fontSize: "clamp(1.85rem,2.6vw,2.6rem)", letterSpacing: "-0.035em", color: "#111827" }}
             >
-                {/* Brand Section */}
-                <div className="flex flex-col items-center text-center" style={{ marginBottom: '1.75rem' }}>
-                    <BrandLogo variant="full" size="xl" />
+              Deliver Report Cards to{" "}
+              <span style={{ color: "#F54927" }}>
+                Every Parent
+              </span>
+              {" "}in Seconds
+            </h1>
+
+            <p className="text-sm leading-relaxed max-w-sm" style={{ color: "#6b7280" }}>
+              A complete school communication platform — send exam results, track delivery, and manage all your classes from one place.
+            </p>
+
+            {/* Feature list */}
+            <div className="mt-10 space-y-4">
+              {[
+                { icon: MessageSquare, title: "Instant WhatsApp Delivery", desc: "Send report cards directly to parents in seconds" },
+                { icon: BarChart3, title: "Live Delivery Analytics", desc: "Track message delivery rates in real time" },
+                { icon: CheckCircle2, title: "Multi-Class Management", desc: "Organise students across classes, sections & subjects" },
+              ].map(({ icon: Icon, title, desc }) => (
+                <div key={title} className="flex items-start gap-3.5">
+                  <div
+                    className="flex-shrink-0 size-9 rounded-xl flex items-center justify-center mt-0.5"
+                    style={{ background: "rgba(245,73,39,0.09)", border: "1px solid rgba(245,73,39,0.18)" }}
+                  >
+                    <Icon className="size-4" style={{ color: "#F54927" }} strokeWidth={1.8} />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: "#111827" }}>{title}</p>
+                    <p className="text-xs mt-0.5" style={{ color: "#9ca3af" }}>{desc}</p>
+                  </div>
                 </div>
-
-                {/* Divider */}
-                <div className="border-t border-gray-100" style={{ marginBottom: '1.75rem' }} />
-
-                <div className="flex flex-col items-center text-center mb-6">
-                    <p className="text-sm font-semibold text-gray-900 tracking-tight">
-                        Login
-                    </p>
-                </div>
-
-                {/* Form */}
-                <form onSubmit={handleLogin} className="space-y-5">
-                    {/* Email */}
-                    <div>
-                        <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
-                            Email address
-                        </label>
-                        <input
-                            id="email"
-                            type="email"
-                            autoComplete="email"
-                            required
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                            placeholder="you@school.com"
-                            className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F54927]/40 focus:border-[#F54927] transition-all"
-                        />
-                    </div>
-
-                    {/* Password */}
-                    <div>
-                        <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">
-                            Password
-                        </label>
-                        <input
-                            id="password"
-                            type={showPassword ? "text" : "password"}
-                            autoComplete="current-password"
-                            required
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="••••••••"
-                            className="w-full px-4 py-2.5 rounded-lg border border-gray-200 text-sm text-gray-900 placeholder-gray-300 focus:outline-none focus:ring-2 focus:ring-[#F54927]/40 focus:border-[#F54927] transition-all"
-                        />
-                    </div>
-
-                    {/* Show Password Toggle */}
-                    <div className="flex items-center">
-                        <input
-                            id="show-password"
-                            type="checkbox"
-                            checked={showPassword}
-                            onChange={(e) => setShowPassword(e.target.checked)}
-                            className="h-4 w-4 text-[#F54927] focus:ring-[#F54927] border-gray-300 rounded cursor-pointer accent-[#F54927]"
-                        />
-                        <label htmlFor="show-password" className="ml-2 block text-sm text-gray-700 cursor-pointer">
-                            Show password
-                        </label>
-                    </div>
-
-                    {/* Error */}
-                    {error && (
-                        <div className="flex items-center gap-2 bg-red-50 border border-red-100 rounded-lg px-4 py-3">
-                            <svg className="w-4 h-4 text-red-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                            </svg>
-                            <p className="text-sm text-red-600">{error}</p>
-                        </div>
-                    )}
-
-                    {/* Submit */}
-                    <button
-                        id="login-submit-btn"
-                        type="submit"
-                        disabled={loading}
-                        className="w-full flex items-center justify-center gap-2 text-white font-semibold text-sm py-2.5 rounded-lg transition-all duration-150 mt-2 disabled:opacity-50"
-                        style={{ background: 'linear-gradient(135deg, #F54927 0%, #ff6b52 100%)', boxShadow: '0 2px 12px 0 rgba(245,73,39,0.25)' }}
-                    >
-                        {loading ? (
-                            <>
-                                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                                </svg>
-                                Logging in…
-                            </>
-                        ) : "Login"}
-                    </button>
-                </form>
-
-                {/* T&C Notice */}
-                <p className="text-center text-[11px] text-gray-400 mt-5 leading-relaxed px-2">
-                    By logging in, you confirm that you have read and agree to our{" "}
-                    <a
-                        href="https://www.eddesk.in/terms"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-[#F54927] font-semibold hover:underline underline-offset-2 transition-all"
-                    >
-                        Terms &amp; Conditions
-                    </a>
-                    .
-                </p>
+              ))}
             </div>
+          </div>
 
-            {/* Bottom Footer */}
-            <div className="fixed bottom-0 left-0 right-0 z-10 border-t border-gray-100 bg-gray-50/80 backdrop-blur-sm">
-                <div className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-3 py-3 px-4 text-center">
-                    <span className="text-[11px] font-semibold text-gray-400 tracking-tight">
-                        <span className="text-gray-500 font-bold">EdDesk</span>
-                        {" "}· Powered by{" "}
-                        <span className="text-gray-500 font-bold">SAC Globe Tech ( V: 1.0.1 )</span>
-                    </span>
-                    <span className="hidden sm:inline text-gray-300 text-[11px]">·</span>
-                    <span className="text-[11px] text-gray-400">
-                        &copy; 2026 SAC Globe Tech. All rights reserved.
-                    </span>
-                </div>
+          {/* Bottom quote card */}
+          <div
+            className="rounded-2xl p-5"
+            style={{
+              background: "rgba(245,73,39,0.04)",
+              border: "1px solid rgba(245,73,39,0.12)",
+            }}
+          >
+            <p className="text-xs leading-relaxed italic mb-3" style={{ color: "#6b7280" }}>
+              "EdDesk has transformed how we communicate exam results to parents. What used to take hours now happens in minutes."
+            </p>
+            <div className="flex items-center gap-2.5">
+              <div
+                className="size-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white flex-shrink-0"
+                style={{ background: "linear-gradient(135deg, #F54927, #FF6B52)" }}
+              >
+                SC
+              </div>
+              <div>
+                <p className="text-xs font-semibold leading-none" style={{ color: "#374151" }}>School Coordinator</p>
+                <p className="text-[10px] mt-0.5" style={{ color: "#9ca3af" }}>Government Hr. Sec. School, Tamil Nadu</p>
+              </div>
             </div>
+          </div>
         </div>
-    );
+      </div>
+
+      {/* ═══════════ RIGHT FORM PANEL ═══════════ */}
+      <div className="flex-1 flex flex-col">
+
+        {/* Mobile logo header */}
+        <div className="lg:hidden px-6 pt-8 pb-4">
+          <BrandLogo variant="full" size="md" className="justify-start" />
+        </div>
+
+        {/* Form centred */}
+        <div className="flex-1 flex items-center justify-center px-6 py-10">
+          <div className="w-full max-w-[380px]">
+
+            {/* Form heading */}
+            <div className="mb-8 lg:mb-10">
+              <p
+                className="text-xs font-bold tracking-widest uppercase mb-2"
+                style={{ color: "#F54927" }}
+              >
+                Welcome back
+              </p>
+              <h2
+                className="text-foreground font-bold leading-tight mb-2"
+                style={{ fontSize: "1.65rem", letterSpacing: "-0.03em" }}
+              >
+                Sign in to your account
+              </h2>
+              <p className="text-muted-foreground text-sm">
+                Use your school email and password to access the dashboard.
+              </p>
+            </div>
+
+            {/* ── FORM ── */}
+            <form onSubmit={handleLogin} noValidate className="space-y-4">
+
+              {/* Email field */}
+              <div className="space-y-1.5">
+                <label htmlFor="email" className="text-xs font-semibold text-foreground block">
+                  School Email
+                </label>
+                <input
+                  id="email"
+                  type="email"
+                  autoComplete="email"
+                  required
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="admin@yourschool.com"
+                  className="w-full h-11 px-4 rounded-xl text-sm font-medium text-foreground placeholder:text-muted-foreground/40 bg-white transition-all outline-none"
+                  style={{
+                    border: "1.5px solid #e5e7eb",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "#F54927";
+                    e.target.style.boxShadow = "0 0 0 3px rgba(245,73,39,0.10)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = "#e5e7eb";
+                    e.target.style.boxShadow = "0 1px 2px rgba(0,0,0,0.04)";
+                  }}
+                />
+              </div>
+
+              {/* Password field */}
+              <div className="space-y-1.5">
+                <label htmlFor="password" className="text-xs font-semibold text-foreground block">
+                  Password
+                </label>
+                <div className="relative">
+                  <input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    autoComplete="current-password"
+                    required
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="Enter your password"
+                    className="w-full h-11 pl-4 pr-11 rounded-xl text-sm font-medium text-foreground placeholder:text-muted-foreground/40 bg-white transition-all outline-none"
+                    style={{
+                      border: "1.5px solid #e5e7eb",
+                      boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
+                    }}
+                    onFocus={(e) => {
+                      e.target.style.borderColor = "#F54927";
+                      e.target.style.boxShadow = "0 0 0 3px rgba(245,73,39,0.10)";
+                    }}
+                    onBlur={(e) => {
+                      e.target.style.borderColor = "#e5e7eb";
+                      e.target.style.boxShadow = "0 1px 2px rgba(0,0,0,0.04)";
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                  >
+                    {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Error message */}
+              {error && (
+                <div
+                  className="flex gap-2.5 items-start rounded-xl px-4 py-3 text-xs leading-relaxed"
+                  style={{
+                    background: "rgba(245,73,39,0.06)",
+                    border: "1px solid rgba(245,73,39,0.18)",
+                    color: "#b91c1c",
+                  }}
+                >
+                  <span className="shrink-0 mt-0.5">⚠️</span>
+                  <span>{error}</span>
+                </div>
+              )}
+
+              {/* Submit button */}
+              <div className="pt-1">
+                <button
+                  id="login-submit-btn"
+                  type="submit"
+                  disabled={loading}
+                  className="group w-full h-12 rounded-xl flex items-center justify-center gap-2.5 text-sm font-bold text-white transition-all duration-200 disabled:opacity-60"
+                  style={{
+                    background: "linear-gradient(135deg, #F54927 0%, #d93f1f 100%)",
+                    boxShadow: "0 4px 20px rgba(245,73,39,0.35), 0 1px 0 rgba(255,255,255,0.1) inset",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!loading) {
+                      (e.currentTarget as HTMLButtonElement).style.boxShadow =
+                        "0 6px 28px rgba(245,73,39,0.45), 0 1px 0 rgba(255,255,255,0.1) inset";
+                      (e.currentTarget as HTMLButtonElement).style.transform = "translateY(-1px)";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.boxShadow =
+                      "0 4px 20px rgba(245,73,39,0.35), 0 1px 0 rgba(255,255,255,0.1) inset";
+                    (e.currentTarget as HTMLButtonElement).style.transform = "translateY(0)";
+                  }}
+                >
+                  {loading ? (
+                    <>
+                      <div className="size-4 rounded-full border-2 border-white/30 border-t-white animate-spin" />
+                      <span>Signing in…</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>Sign In to Dashboard</span>
+                      <ArrowRight
+                        className="size-4 transition-transform duration-200 group-hover:translate-x-1"
+                        strokeWidth={2.2}
+                      />
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+
+            {/* Divider */}
+            <div className="flex items-center gap-3 my-6">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-[10px] font-bold tracking-widest uppercase text-muted-foreground/60">
+                Protected & Encrypted
+              </span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+
+            {/* Trust badges */}
+            <div className="flex items-center justify-center gap-4">
+              {[
+                { emoji: "🔒", label: "SSL Secured" },
+                { emoji: "🛡️", label: "Data Private" },
+                { emoji: "⚡", label: "99.9% Uptime" },
+              ].map(({ emoji, label }) => (
+                <div key={label} className="flex items-center gap-1.5 text-muted-foreground">
+                  <span className="text-xs">{emoji}</span>
+                  <span className="text-[11px] font-medium">{label}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Terms */}
+            <p className="text-center text-[11px] text-muted-foreground/70 leading-relaxed mt-6">
+              By signing in you agree to our{" "}
+              <a
+                href="https://www.eddesk.in/terms"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="font-semibold underline underline-offset-2 hover:no-underline transition-all"
+                style={{ color: "#F54927" }}
+              >
+                Terms &amp; Conditions
+              </a>
+            </p>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <footer className="px-6 py-4 text-center border-t border-border/60">
+          <p className="text-[11px] text-muted-foreground">
+            &copy; 2026{" "}
+            <span className="font-semibold text-foreground/70">SAC Globe Tech</span>
+            {" "}· EdDesk v1.0.1
+          </p>
+        </footer>
+      </div>
+    </div>
+  );
 }
 
 export default function LoginPage() {
-    return (
-        <Suspense fallback={
-            <div className="min-h-screen flex items-center justify-center bg-gray-50">
-                <div className="animate-pulse flex flex-col items-center gap-4">
-                    <div className="w-12 h-12 bg-gray-200 rounded-full"></div>
-                    <div className="h-4 w-32 bg-gray-200 rounded"></div>
-                </div>
-            </div>
-        }>
-            <LoginContent />
-        </Suspense>
-    );
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen flex items-center justify-center bg-[#fafafa]">
+          <div
+            className="size-8 rounded-full border-2 border-t-transparent animate-spin"
+            style={{ borderColor: "#F54927", borderTopColor: "transparent" }}
+          />
+        </div>
+      }
+    >
+      <LoginContent />
+    </Suspense>
+  );
 }
