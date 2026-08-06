@@ -58,36 +58,37 @@ export default function AppHeader() {
             .maybeSingle();
 
           if (!whatsappUser && user.email) {
-            const { data: userByEmail } = await supabase
-              .from("whatsappusers")
-              .select("schoolkey, username")
-              .ilike("email", user.email.trim().toLowerCase())
-              .maybeSingle();
-            if (userByEmail) whatsappUser = userByEmail;
+            try {
+              const provRes = await fetch("/api/auth/provision-user", { method: "POST" });
+              const provJson = await provRes.json();
+              if (provJson?.success && provJson?.user) {
+                whatsappUser = provJson.user;
+              }
+            } catch (e) {
+              console.error("Header provisioning error:", e);
+            }
           }
 
           let targetSchoolKey = whatsappUser?.schoolkey;
 
-          let query = supabase.from("subscriptions").select("whatsappcredit");
           if (targetSchoolKey) {
-            query = query.eq("schoolkey", targetSchoolKey);
-          } else {
-            query = query.order("createdat", { ascending: false });
-          }
+            const { data: subList } = await supabase
+              .from("subscriptions")
+              .select("whatsappcredit")
+              .eq("schoolkey", targetSchoolKey)
+              .order("updatedat", { ascending: false })
+              .limit(1);
 
-          const { data: subList } = await query.limit(1);
-          if (subList && subList.length > 0) {
-            setCredits(subList[0].whatsappcredit ?? 0);
+            if (subList && subList.length > 0) {
+              setCredits(subList[0].whatsappcredit ?? 0);
+            } else {
+              setCredits(0);
+            }
+          } else {
+            setCredits(0);
           }
         } else {
-          const { data: subList } = await supabase
-            .from("subscriptions")
-            .select("whatsappcredit")
-            .order("createdat", { ascending: false })
-            .limit(1);
-          if (subList && subList.length > 0) {
-            setCredits(subList[0].whatsappcredit ?? 0);
-          }
+          setCredits(0);
         }
       } catch (err) {
         console.error("Header data load error:", err);
@@ -138,11 +139,16 @@ export default function AppHeader() {
             </button>
             <Link href="/" className="flex items-center">
               <img
-                src="/logo-full.png"
+                src="/logo-full-1.png"
                 alt="EdDesk"
                 className="h-7 w-auto object-contain"
                 onError={(e) => {
-                  (e.target as HTMLElement).style.display = "none";
+                  const target = e.target as HTMLImageElement;
+                  if (target.src.includes("logo-full-1.png")) {
+                    target.src = "/logo-full.png";
+                  } else {
+                    target.style.display = "none";
+                  }
                 }}
               />
             </Link>
@@ -203,9 +209,17 @@ export default function AppHeader() {
             <div className="flex items-center justify-between pb-5 border-b border-sidebar-border">
               <Link href="/" onClick={() => setIsMobileMenuOpen(false)}>
                 <img
-                  src="/logo-full.png"
+                  src="/logo-full-1.png"
                   alt="EdDesk"
                   className="h-8 w-auto object-contain"
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    if (target.src.includes("logo-full-1.png")) {
+                      target.src = "/logo-full.png";
+                    } else {
+                      target.style.display = "none";
+                    }
+                  }}
                 />
               </Link>
               <button

@@ -12,7 +12,7 @@ export default function BrandLogo({ className = "", variant = 'full', size = 'md
     const iconSizes = { sm: 24, md: 32, lg: 40, xl: 52 };
     const fullSizes = { sm: 100, md: 140, lg: 180, xl: 220 };
 
-    const imageSrc = variant === 'icon' ? '/logo-icon.png' : '/logo-full.png';
+    const imageSrc = variant === 'icon' ? '/logo-icon-1.jpeg' : '/logo-full-1.png';
     const imgSize = variant === 'icon' ? iconSizes[size] : fullSizes[size];
 
     const imgStyle: React.CSSProperties = variant === 'icon'
@@ -25,6 +25,13 @@ export default function BrandLogo({ className = "", variant = 'full', size = 'md
                 src={imageSrc}
                 alt="EdDesk-Communication Logo"
                 style={imgStyle}
+                onError={(e) => {
+                    // Fallback to png if needed
+                    const target = e.target as HTMLImageElement;
+                    if (target.src.endsWith('-1.png')) {
+                        target.src = variant === 'icon' ? '/logo-icon.png' : '/logo-full.png';
+                    }
+                }}
             />
         </div>
     );

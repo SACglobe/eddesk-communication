@@ -289,7 +289,7 @@ export default function SendReportCardPage() {
     `🏫 *Class & Sec:* ${klass || "—"}`,
     "",
     "*--- Marks ---*",
-    ...marks.filter((m) => m.name.trim()).map((m) => `${m.name}: ${m.obtained} / ${m.total}`),
+    marks.filter((m) => m.name.trim()).map((m) => `${m.name}: ${m.obtained}/${m.total}`).join(", "),
     "",
     `📊 *Total:* ${totals.obtained} / ${totals.total}`,
     `📈 *Percentage:* ${totals.percent.toFixed(2)}%`,

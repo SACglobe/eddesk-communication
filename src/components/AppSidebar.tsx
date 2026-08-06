@@ -88,12 +88,16 @@ export default function AppSidebar() {
     <aside className="sticky top-0 hidden h-screen w-[264px] shrink-0 flex-col border-r border-sidebar-border bg-sidebar px-4 py-6 lg:flex">
       <Link href="/" className="mb-8 flex items-center gap-3 px-2">
         <img
-          src="/logo-full.png"
+          src="/logo-full-1.png"
           alt="EdDesk Communication Suite"
           className="h-9 w-auto max-w-[200px] object-contain"
           onError={(e) => {
-            // Fallback to icon if full logo isn't present
-            (e.target as HTMLElement).style.display = "none";
+            const target = e.target as HTMLImageElement;
+            if (target.src.includes("logo-full-1.png")) {
+              target.src = "/logo-full.png";
+            } else {
+              target.style.display = "none";
+            }
           }}
         />
       </Link>

@@ -17,8 +17,8 @@ export const metadata: Metadata = {
   title: "EdDesk Communication Suite",
   description: "Your school's report card centre: send formatted report cards to parents on WhatsApp and track every delivery.",
   icons: {
-    icon: "/logo-icon.png",
-    apple: "/logo-icon.png",
+    icon: "/logo-icon-1.jpeg",
+    apple: "/logo-icon-1.jpeg",
   },
 };
 

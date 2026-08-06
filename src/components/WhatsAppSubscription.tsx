@@ -260,7 +260,7 @@ export default function WhatsAppSubscription({ showOnlyPlans = false }: WhatsApp
             {/* Monthly Plan Card */}
             <div className="bg-white rounded-3xl p-8 border border-slate-200 shadow-sm flex flex-col justify-between hover:shadow-xl transition-all">
               <div>
-                <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-6">
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 text-primary flex items-center justify-center mb-6">
                   <Zap className="w-6 h-6" />
                 </div>
                 <h3 className="text-2xl font-bold text-slate-900">Monthly Plan</h3>
@@ -487,7 +487,7 @@ export default function WhatsAppSubscription({ showOnlyPlans = false }: WhatsApp
               <span className="text-xs font-bold text-slate-400 tracking-widest uppercase">YEARLY PREMIUM</span>
 
               {yearlyOfferBadge && (
-                <div className="inline-flex items-center gap-1.5 bg-blue-600 text-white text-[11px] font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
+                <div className="inline-flex items-center gap-1.5 bg-primary text-white text-[11px] font-black px-3 py-1 rounded-full uppercase tracking-wider shadow-sm">
                   <Zap className="w-3 h-3 fill-current" />
                   {yearlyOfferBadge}
                 </div>

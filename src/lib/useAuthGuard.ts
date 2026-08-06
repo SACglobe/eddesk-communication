@@ -36,24 +36,16 @@ export function useAuthGuard(requireSubscription = true) {
                     .eq("authuserid", user.id)
                     .maybeSingle();
 
-                // Fallback: If not found by authuserid, search by email (case-insensitive)
+                // Fallback: If not found by authuserid, attempt server-side provisioning if email matches a registered school
                 if (!whatsappUser && user.email) {
-                    const cleanEmail = user.email.trim().toLowerCase();
-                    const { data: userByEmail } = await supabase
-                        .from("whatsappusers")
-                        .select("*")
-                        .ilike("email", cleanEmail)
-                        .maybeSingle();
-
-                    if (userByEmail) {
-                        whatsappUser = userByEmail;
-                        // Auto-link authuserid to current logged in user ID
-                        if (userByEmail.authuserid !== user.id) {
-                            await supabase
-                                .from("whatsappusers")
-                                .update({ authuserid: user.id })
-                                .eq("key", userByEmail.key);
+                    try {
+                        const provRes = await fetch("/api/auth/provision-user", { method: "POST" });
+                        const provJson = await provRes.json();
+                        if (provJson?.success && provJson?.user) {
+                            whatsappUser = provJson.user;
                         }
+                    } catch (e) {
+                        console.error("Provisioning user failed:", e);
                     }
                 }
 
@@ -92,18 +84,19 @@ export function useAuthGuard(requireSubscription = true) {
 
                 if (requireSubscription) {
                     if (key) {
-                        const now = new Date().toISOString();
+                        const now = new Date();
                         const { data: subData } = await supabase
                             .from("subscriptions")
                             .select("*")
                             .eq("schoolkey", key)
                             .eq("isactive", true)
                             .eq("status", "active")
-                            .gte("whatsappenddate", now)
-                            .limit(1)
                             .maybeSingle();
 
-                        if (!subData && pathname !== '/subscription') {
+                        const expiryDateStr = subData?.whatsappenddate || subData?.enddate;
+                        const isExpired = expiryDateStr ? new Date(expiryDateStr) < now : false;
+
+                        if ((!subData || isExpired) && pathname !== '/subscription') {
                             if (isMounted) {
                                 router.push('/subscription');
                             }
