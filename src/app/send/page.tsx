@@ -730,12 +730,9 @@ export default function SendReportCardPage() {
                         return (
                           <tr key={m.id} className="hover:bg-muted/30">
                             <td className="px-3 py-2">
-                              <input
-                                value={m.name}
-                                placeholder={`Subject ${i + 1}`}
-                                onChange={(e) => updateSubject(i, { name: e.target.value })}
-                                className="w-full rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-sm font-medium outline-none focus:border-border focus:bg-background"
-                              />
+                              <span className="block px-2 py-1.5 text-sm font-medium text-foreground select-none">
+                                {m.name || `Subject ${i + 1}`}
+                              </span>
                             </td>
                             <td className="px-2 py-2">
                               <input
