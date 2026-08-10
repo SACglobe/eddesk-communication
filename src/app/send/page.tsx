@@ -11,7 +11,7 @@ import { WhatsAppPreview } from "@/components/whatsapp-preview";
 import { createClient } from "@/lib/supabase/client";
 import { useToast } from "@/components/ToastContext";
 
-type Subject = { id: string; name: string; total: number; obtained: number };
+type Subject = { id: string; name: string; total: number; obtained: number; isAbsent?: boolean };
 
 interface AcademicStructure {
   id: string;
@@ -264,7 +264,7 @@ export default function SendReportCardPage() {
 
   const totals = useMemo(() => {
     const total = marks.reduce((s, m) => s + m.total, 0);
-    const obtained = marks.reduce((s, m) => s + m.obtained, 0);
+    const obtained = marks.reduce((s, m) => s + (m.isAbsent ? 0 : m.obtained), 0);
     const percent = total ? Math.round((obtained / total) * 1000) / 10 : 0;
     return { total, obtained, percent };
   }, [marks]);
@@ -280,6 +280,11 @@ export default function SendReportCardPage() {
     ? `${remarks.trim()} - Contact us on ${displaySchoolPhone}`
     : `Contact us on ${displaySchoolPhone}`;
 
+  const subjectMarksFormatted = marks
+    .filter((m) => m.name.trim())
+    .map((m) => (m.isAbsent ? `${m.name}: Absent` : `${m.name}: ${m.obtained}/${m.total}`))
+    .join(", ");
+
   const previewLines = [
     `🎓 *${displaySchoolName} (${displaySchoolPhone})* 🎓`,
     "",
@@ -289,7 +294,7 @@ export default function SendReportCardPage() {
     `🏫 *Class & Sec:* ${klass || "—"}`,
     "",
     "*--- Marks ---*",
-    marks.filter((m) => m.name.trim()).map((m) => `${m.name}: ${m.obtained}/${m.total}`).join(", "),
+    subjectMarksFormatted,
     "",
     `📊 *Total:* ${totals.obtained} / ${totals.total}`,
     `📈 *Percentage:* ${totals.percent.toFixed(2)}%`,
@@ -301,7 +306,7 @@ export default function SendReportCardPage() {
   ];
 
   const hasCredits = whatsappCredit === null || whatsappCredit > 0;
-  const hasValidMarks = marks.length > 0 && marks.every((m) => !m.name.trim() || (m.obtained > 0 && m.total > 0));
+  const hasValidMarks = marks.length > 0 && marks.every((m) => !m.name.trim() || m.isAbsent || (m.obtained > 0 && m.total > 0));
 
   const isStudentValid = student.trim().length > 0;
   const isPhoneValid = phone.replace(/\D/g, "").length === 10;
@@ -344,7 +349,7 @@ export default function SendReportCardPage() {
       return;
     }
 
-    const zeroMarkSubject = marks.find((m) => m.name.trim() && (m.obtained <= 0 || m.total <= 0));
+    const zeroMarkSubject = marks.find((m) => m.name.trim() && !m.isAbsent && (m.obtained <= 0 || m.total <= 0));
     if (zeroMarkSubject) {
       showToast(`Obtained and Total marks must be greater than 0 for "${zeroMarkSubject.name}".`, "error", "Invalid Marks");
       return;
@@ -369,7 +374,7 @@ export default function SendReportCardPage() {
             2: exam,
             3: capitalizeWords(student),
             4: klass,
-            5: marks.filter(m => m.name.trim()).map(m => `${m.name}: ${m.obtained}/${m.total}`).join(", "),
+            5: subjectMarksFormatted,
             6: `${totals.obtained}/${totals.total}`,
             7: `${totals.percent.toFixed(2)}%`,
             8: remarksText
@@ -719,6 +724,7 @@ export default function SendReportCardPage() {
                     <thead className="bg-muted/60">
                       <tr>
                         <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground">Subject</th>
+                        <th className="w-28 px-3 py-2.5 text-center text-xs font-medium text-muted-foreground">Attendance</th>
                         <th className="w-28 px-3 py-2.5 text-right text-xs font-medium text-muted-foreground">Obtained</th>
                         <th className="w-28 px-3 py-2.5 text-right text-xs font-medium text-muted-foreground">Total</th>
                         <th className="w-20 px-3 py-2.5 text-right text-xs font-medium text-muted-foreground">%</th>
@@ -728,35 +734,60 @@ export default function SendReportCardPage() {
                       {marks.map((m, i) => {
                         const pct = m.total ? Math.round((m.obtained / m.total) * 1000) / 10 : 0;
                         return (
-                          <tr key={m.id} className="hover:bg-muted/30">
+                          <tr key={m.id} className={m.isAbsent ? "bg-amber-500/5 hover:bg-amber-500/10" : "hover:bg-muted/30"}>
                             <td className="px-3 py-2">
                               <span className="block px-2 py-1.5 text-sm font-medium text-foreground select-none">
                                 {m.name || `Subject ${i + 1}`}
                               </span>
                             </td>
+                            <td className="px-2 py-2 text-center">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  const nextAbsent = !m.isAbsent;
+                                  updateSubject(i, {
+                                    isAbsent: nextAbsent,
+                                    obtained: nextAbsent ? 0 : (m.obtained || 1)
+                                  });
+                                }}
+                                className={`inline-flex items-center justify-center rounded-lg px-2.5 py-1 text-xs font-semibold transition-all cursor-pointer ${
+                                  m.isAbsent
+                                    ? "bg-amber-500/15 text-amber-800 border border-amber-500/30 hover:bg-amber-500/25"
+                                    : "bg-muted/60 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                }`}
+                              >
+                                {m.isAbsent ? "Absent" : "Present"}
+                              </button>
+                            </td>
                             <td className="px-2 py-2">
-                              <input
-                                type="text"
-                                inputMode="numeric"
-                                pattern="[0-9]*"
-                                value={m.obtained === 0 ? "" : m.obtained}
-                                placeholder="1"
-                                onFocus={(e) => e.target.select()}
-                                onChange={(e) => {
-                                  const cleanVal = e.target.value.replace(/\D/g, "").replace(/^0+/, "");
-                                  const num = cleanVal === "" ? 0 : parseInt(cleanVal, 10);
-                                  updateSubject(i, { obtained: Math.min(isNaN(num) ? 0 : num, m.total) });
-                                }}
-                                onBlur={(e) => {
-                                  if (m.obtained <= 0) {
-                                    updateSubject(i, { obtained: 1 });
-                                    e.target.value = "1";
-                                  } else {
-                                    e.target.value = String(m.obtained);
-                                  }
-                                }}
-                                className="w-full rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-right text-sm tabular-nums outline-none focus:border-border focus:bg-background"
-                              />
+                              {m.isAbsent ? (
+                                <div className="w-full px-2 py-1.5 text-right text-xs font-bold text-amber-700 select-none">
+                                  Absent
+                                </div>
+                              ) : (
+                                <input
+                                  type="text"
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
+                                  value={m.obtained === 0 ? "" : m.obtained}
+                                  placeholder="1"
+                                  onFocus={(e) => e.target.select()}
+                                  onChange={(e) => {
+                                    const cleanVal = e.target.value.replace(/\D/g, "").replace(/^0+/, "");
+                                    const num = cleanVal === "" ? 0 : parseInt(cleanVal, 10);
+                                    updateSubject(i, { obtained: Math.min(isNaN(num) ? 0 : num, m.total) });
+                                  }}
+                                  onBlur={(e) => {
+                                    if (m.obtained <= 0) {
+                                      updateSubject(i, { obtained: 1 });
+                                      e.target.value = "1";
+                                    } else {
+                                      e.target.value = String(m.obtained);
+                                    }
+                                  }}
+                                  className="w-full rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-right text-sm tabular-nums outline-none focus:border-border focus:bg-background"
+                                />
+                              )}
                             </td>
                             <td className="px-2 py-2">
                               <input
@@ -782,7 +813,9 @@ export default function SendReportCardPage() {
                                 className="w-full rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-right text-sm tabular-nums outline-none focus:border-border focus:bg-background"
                               />
                             </td>
-                            <td className="px-3 py-2 text-right text-xs tabular-nums text-muted-foreground">{pct}%</td>
+                            <td className="px-3 py-2 text-right text-xs tabular-nums text-muted-foreground">
+                              {m.isAbsent ? <span className="font-semibold text-amber-700">Absent</span> : `${pct}%`}
+                            </td>
                           </tr>
                         );
                       })}

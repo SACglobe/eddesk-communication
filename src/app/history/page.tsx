@@ -21,6 +21,7 @@ import AccessDenied from "@/components/AccessDenied";
 import { PageHeader, Panel, StatusChip } from "@/components/ui-kit";
 import { WhatsAppPreview } from "@/components/whatsapp-preview";
 import { createClient } from "@/lib/supabase/client";
+import { getTwilioFailureReason } from "@/lib/twilio-errors";
 
 interface HistoryLog {
   id: string;
@@ -404,7 +405,7 @@ export default function HistoryPage() {
                     </span>
                     {(m.status === "failed" || m.status === "undelivered") && (
                       <span className="mt-1 block truncate text-[11px] font-medium text-destructive">
-                        Reason: {m.errorMessage || (m.errorCode ? `Error code ${m.errorCode}` : "Undelivered (Invalid number or opted out)")}
+                        Reason: {getTwilioFailureReason(m.errorCode, m.errorMessage)}
                       </span>
                     )}
                   </span>
@@ -559,11 +560,7 @@ export default function HistoryPage() {
                     <div>
                       <p className="font-semibold text-sm">Message Delivery Failure Reason</p>
                       <p className="mt-1 font-normal text-xs leading-relaxed text-destructive/90">
-                        {active.errorMessage
-                          ? active.errorMessage
-                          : active.errorCode
-                          ? `Twilio Error Code ${active.errorCode}`
-                          : "Undelivered — Invalid mobile number or recipient unsubscribed."}
+                        {getTwilioFailureReason(active.errorCode, active.errorMessage)}
                       </p>
                     </div>
                   </div>
@@ -601,7 +598,7 @@ export default function HistoryPage() {
                     <span className="absolute -left-[21px] top-0.5 grid size-2.5 place-items-center rounded-full bg-destructive ring-4 ring-background" />
                     <p className="text-xs font-semibold text-destructive">Delivery Failed</p>
                     <p className="text-[11px] text-destructive/80">
-                      {active.errorMessage || "Undelivered"}
+                      {getTwilioFailureReason(active.errorCode, active.errorMessage)}
                     </p>
                   </li>
                 ) : null}
