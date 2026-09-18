@@ -47,7 +47,14 @@ export default function SendReportCardPage() {
   const [toastMessage, setToastMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   const [studentSuggestions, setStudentSuggestions] = useState<
-    { studentName: string; mobile: string; classSec: string }[]
+    {
+      id?: string;
+      studentName: string;
+      mobile: string;
+      classSec: string;
+      standardName?: string;
+      section?: string;
+    }[]
   >([]);
   const [showStudentDropdown, setShowStudentDropdown] = useState(false);
   const [showPhoneDropdown, setShowPhoneDropdown] = useState(false);
@@ -136,29 +143,49 @@ export default function SendReportCardPage() {
         setWhatsappCredit(sub.whatsappcredit ?? 0);
       }
 
-      // Load previous students from report_card_history for autocomplete suggestions
-      const { data: historyItems } = await supabase
-        .from("report_card_history")
-        .select("studentname, mobile, classsec")
+      // Load all students from master students table for autocomplete suggestions
+      const { data: studentList } = await supabase
+        .from("students")
+        .select("id, studentname, mobile, classsec, standardname, section")
         .eq("schoolkey", keyToUse)
-        .order("created_at", { ascending: false })
-        .limit(100);
+        .order("studentname", { ascending: true });
 
-      if (historyItems) {
-        const map = new Map<string, { studentName: string; mobile: string; classSec: string }>();
-        historyItems.forEach((item) => {
-          if (item.studentname) {
-            const key = `${item.studentname.trim().toLowerCase()}-${item.mobile}`;
-            if (!map.has(key)) {
-              map.set(key, {
-                studentName: capitalizeWords(item.studentname),
-                mobile: item.mobile || "",
-                classSec: item.classsec || "",
-              });
+      if (studentList && studentList.length > 0) {
+        setStudentSuggestions(
+          studentList.map((item) => ({
+            id: item.id,
+            studentName: capitalizeWords(item.studentname),
+            mobile: item.mobile || "",
+            classSec: item.classsec || "",
+            standardName: item.standardname || "",
+            section: item.section || "",
+          }))
+        );
+      } else {
+        // Fallback to history if students table is empty
+        const { data: historyItems } = await supabase
+          .from("report_card_history")
+          .select("studentname, mobile, classsec")
+          .eq("schoolkey", keyToUse)
+          .order("created_at", { ascending: false })
+          .limit(2000);
+
+        if (historyItems) {
+          const map = new Map<string, { studentName: string; mobile: string; classSec: string }>();
+          historyItems.forEach((item) => {
+            if (item.studentname) {
+              const key = `${item.studentname.trim().toLowerCase()}-${item.mobile}`;
+              if (!map.has(key)) {
+                map.set(key, {
+                  studentName: capitalizeWords(item.studentname),
+                  mobile: item.mobile || "",
+                  classSec: item.classsec || "",
+                });
+              }
             }
-          }
-        });
-        setStudentSuggestions(Array.from(map.values()));
+          });
+          setStudentSuggestions(Array.from(map.values()));
+        }
       }
 
       // Load academic structures sorted by displayno
@@ -231,6 +258,53 @@ export default function SendReportCardPage() {
       window.removeEventListener("credits_updated", handleCreditsUpdate);
     };
   }, [isAuthorized, schoolKey]);
+
+  // Live dynamic database search on master students directory
+  useEffect(() => {
+    const queryTerm = (student.trim().length >= 2 ? student.trim() : "") || (phone.trim().length >= 3 ? phone.trim() : "");
+    if (!queryTerm || !schoolKey) return;
+
+    const timer = setTimeout(async () => {
+      try {
+        const supabase = createClient();
+        const { data } = await supabase
+          .from("students")
+          .select("id, studentname, mobile, classsec, standardname, section")
+          .eq("schoolkey", schoolKey)
+          .or(`studentname.ilike.%${queryTerm}%,mobile.ilike.%${queryTerm}%`)
+          .order("studentname", { ascending: true })
+          .limit(30);
+
+        if (data && data.length > 0) {
+          setStudentSuggestions((prev) => {
+            const map = new Map<string, { id?: string; studentName: string; mobile: string; classSec: string; standardName?: string; section?: string }>();
+            prev.forEach((item) => {
+              const key = `${item.studentName.trim().toLowerCase()}-${item.mobile}`;
+              map.set(key, item);
+            });
+            data.forEach((item) => {
+              if (item.studentname) {
+                const key = `${item.studentname.trim().toLowerCase()}-${item.mobile}`;
+                map.set(key, {
+                  id: item.id,
+                  studentName: capitalizeWords(item.studentname),
+                  mobile: item.mobile || "",
+                  classSec: item.classsec || "",
+                  standardName: item.standardname || "",
+                  section: item.section || "",
+                });
+              }
+            });
+            return Array.from(map.values());
+          });
+        }
+      } catch (err) {
+        console.error("Error searching students directory:", err);
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [student, phone, schoolKey]);
 
   const selectedClass = structures.find(s => s.id === selectedClassId);
 
@@ -323,6 +397,37 @@ export default function SendReportCardPage() {
     hasCredits &&
     hasValidMarks;
 
+  const handleSelectSuggestion = (sug: {
+    studentName: string;
+    mobile: string;
+    classSec: string;
+    standardName?: string;
+    section?: string;
+  }) => {
+    setStudent(sug.studentName);
+    if (sug.mobile) setPhone(sug.mobile);
+    if (structures.length > 0) {
+      const matched = structures.find(
+        (s) =>
+          (sug.standardName && s.standardName.trim().toLowerCase() === sug.standardName.trim().toLowerCase()) ||
+          (sug.classSec && sug.classSec.toLowerCase().includes(s.standardName.toLowerCase()))
+      );
+      if (matched) {
+        setSelectedClassId(matched.id);
+        const secMatch = matched.sections.find(
+          (sec) =>
+            (sug.section && sec.trim().toLowerCase() === sug.section.trim().toLowerCase()) ||
+            (sug.classSec && sug.classSec.toLowerCase().includes(sec.toLowerCase()))
+        );
+        if (secMatch) {
+          setSelectedSection(secMatch);
+        } else if (sug.section && matched.sections.includes(sug.section)) {
+          setSelectedSection(sug.section);
+        }
+      }
+    }
+  };
+
   const updateSubject = (index: number, patch: Partial<Subject>) => {
     setMarks((prev) => prev.map((m, i) => (i === index ? { ...m, ...patch } : m)));
   };
@@ -403,6 +508,26 @@ export default function SendReportCardPage() {
         sid: data.sid || null,
         status: data.status || "sent"
       });
+
+      // Upsert student into master students directory
+      if (schoolKey) {
+        try {
+          await supabase.from("students").upsert(
+            {
+              schoolkey: schoolKey,
+              studentname: capitalizeWords(student.trim()),
+              mobile: cleanPhone,
+              classsec: klass.trim(),
+              standardname: selectedClass?.standardName || "",
+              section: selectedSection || "",
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "schoolkey,studentname,mobile" }
+          );
+        } catch (studentErr) {
+          console.error("Error updating student directory:", studentErr);
+        }
+      }
 
       // Update local & remote credits balance cleanly from latest DB value
       let currentDbCredit = whatsappCredit;
@@ -535,44 +660,38 @@ export default function SendReportCardPage() {
                       {studentSuggestions
                         .filter(
                           (s) =>
-                            s.studentName.toLowerCase().includes(student.toLowerCase()) ||
-                            s.mobile.includes(student)
+                            s.studentName.toLowerCase().includes(student.trim().toLowerCase()) ||
+                            s.mobile.includes(student.trim())
                         )
-                        .slice(0, 8)
+                        .slice(0, 10)
                         .map((sug, idx) => (
                           <li key={idx}>
                             <button
                               type="button"
                               onMouseDown={() => {
-                                setStudent(sug.studentName);
-                                if (sug.mobile) setPhone(sug.mobile);
-                                if (sug.classSec && structures.length > 0) {
-                                  const matched = structures.find((s) =>
-                                    sug.classSec.toLowerCase().includes(s.standardName.toLowerCase())
-                                  );
-                                  if (matched) {
-                                    setSelectedClassId(matched.id);
-                                    const secMatch = matched.sections.find((sec) =>
-                                      sug.classSec.toLowerCase().includes(sec.toLowerCase())
-                                    );
-                                    if (secMatch) setSelectedSection(secMatch);
-                                  }
-                                }
+                                handleSelectSuggestion(sug);
                                 setShowStudentDropdown(false);
                               }}
-                              className="flex w-full flex-col gap-0.5 rounded-lg px-3 py-2 text-left text-xs transition-colors hover:bg-accent"
+                              className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-xs transition-colors hover:bg-accent cursor-pointer"
                             >
-                              <span className="font-semibold text-foreground">{sug.studentName}</span>
-                              <span className="text-muted-foreground">
-                                +91 {sug.mobile} · {sug.classSec}
-                              </span>
+                              <div className="flex flex-col gap-0.5 min-w-0">
+                                <span className="font-semibold text-foreground truncate">{sug.studentName}</span>
+                                <span className="text-muted-foreground text-[11px] truncate">
+                                  +91 {sug.mobile}
+                                </span>
+                              </div>
+                              {sug.classSec && (
+                                <span className="shrink-0 rounded-md bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] font-bold text-primary">
+                                  {sug.classSec}
+                                </span>
+                              )}
                             </button>
                           </li>
                         ))}
                       {studentSuggestions.filter(
                         (s) =>
-                          s.studentName.toLowerCase().includes(student.toLowerCase()) ||
-                          s.mobile.includes(student)
+                          s.studentName.toLowerCase().includes(student.trim().toLowerCase()) ||
+                          s.mobile.includes(student.trim())
                       ).length === 0 && (
                         <li className="px-3 py-2 text-xs text-muted-foreground">No matching student found</li>
                       )}
@@ -603,37 +722,31 @@ export default function SendReportCardPage() {
                       {studentSuggestions
                         .filter(
                           (s) =>
-                            s.mobile.includes(phone) ||
-                            s.studentName.toLowerCase().includes(phone.toLowerCase())
+                            s.mobile.includes(phone.trim()) ||
+                            s.studentName.toLowerCase().includes(phone.trim().toLowerCase())
                         )
-                        .slice(0, 8)
+                        .slice(0, 10)
                         .map((sug, idx) => (
                           <li key={idx}>
                             <button
                               type="button"
                               onMouseDown={() => {
-                                setStudent(sug.studentName);
-                                if (sug.mobile) setPhone(sug.mobile);
-                                if (sug.classSec && structures.length > 0) {
-                                  const matched = structures.find((s) =>
-                                    sug.classSec.toLowerCase().includes(s.standardName.toLowerCase())
-                                  );
-                                  if (matched) {
-                                    setSelectedClassId(matched.id);
-                                    const secMatch = matched.sections.find((sec) =>
-                                      sug.classSec.toLowerCase().includes(sec.toLowerCase())
-                                    );
-                                    if (secMatch) setSelectedSection(secMatch);
-                                  }
-                                }
+                                handleSelectSuggestion(sug);
                                 setShowPhoneDropdown(false);
                               }}
-                              className="flex w-full flex-col gap-0.5 rounded-lg px-3 py-2 text-left text-xs transition-colors hover:bg-accent"
+                              className="flex w-full items-center justify-between gap-2 rounded-lg px-3 py-2 text-left text-xs transition-colors hover:bg-accent cursor-pointer"
                             >
-                              <span className="font-semibold text-foreground">{sug.studentName}</span>
-                              <span className="text-muted-foreground">
-                                +91 {sug.mobile} · {sug.classSec}
-                              </span>
+                              <div className="flex flex-col gap-0.5 min-w-0">
+                                <span className="font-semibold text-foreground truncate">{sug.studentName}</span>
+                                <span className="text-muted-foreground text-[11px] truncate">
+                                  +91 {sug.mobile}
+                                </span>
+                              </div>
+                              {sug.classSec && (
+                                <span className="shrink-0 rounded-md bg-primary/10 border border-primary/20 px-2 py-0.5 text-[10px] font-bold text-primary">
+                                  {sug.classSec}
+                                </span>
+                              )}
                             </button>
                           </li>
                         ))}
