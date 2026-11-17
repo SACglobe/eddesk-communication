@@ -16,10 +16,13 @@ export function WhatsAppPreview({
   lines,
   recipient = "Parent",
   time = "9:12 AM",
+  buttonLabel,
 }: {
   lines: string[];
   recipient?: string;
   time?: string;
+  /** A call-to-action button under the message (WhatsApp template buttons). */
+  buttonLabel?: string;
 }) {
   return (
     <div className="overflow-hidden rounded-xl border border-border">
@@ -57,6 +60,11 @@ export function WhatsAppPreview({
             <CheckCheck className="size-3 text-info" strokeWidth={2.4} />
           </p>
         </div>
+        {buttonLabel ? (
+          <div className="ml-auto max-w-[86%] rounded-2xl bg-whatsapp-bubble px-3.5 py-2.5 text-center text-[13px] font-medium text-info shadow-card">
+            ↗ {buttonLabel}
+          </div>
+        ) : null}
       </div>
     </div>
   );

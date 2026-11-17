@@ -70,7 +70,42 @@ export async function POST(req: NextRequest) {
                 }
             }
         } else {
-            console.log(`[Twilio Webhook] No matching report_card_history found for SID: ${messageSid}`);
+            // Not a report card: it may be an app invite (same status updates and the same refund on failure)
+            const { data: inviteRow } = await supabase
+                .from("app_invite_history")
+                .select("id, schoolkey, status")
+                .eq("sid", messageSid)
+                .maybeSingle();
+
+            if (inviteRow) {
+                await supabase
+                    .from("app_invite_history")
+                    .update({
+                        status: messageStatus,
+                        error_code: errorCode || null,
+                        error_message: errorMessage || null
+                    })
+                    .eq("id", inviteRow.id);
+
+                const isFailure = messageStatus === "failed" || messageStatus === "undelivered";
+                const wasFailure = inviteRow.status === "failed" || inviteRow.status === "undelivered";
+                if (isFailure && !wasFailure && inviteRow.schoolkey) {
+                    const { data: sub } = await supabase
+                        .from("subscriptions")
+                        .select("whatsappcredit")
+                        .eq("schoolkey", inviteRow.schoolkey)
+                        .maybeSingle();
+                    if (sub) {
+                        await supabase
+                            .from("subscriptions")
+                            .update({ whatsappcredit: (sub.whatsappcredit || 0) + 1 })
+                            .eq("schoolkey", inviteRow.schoolkey);
+                        console.log(`[Twilio Webhook] Refunded 1 credit (app invite) to school: ${inviteRow.schoolkey}`);
+                    }
+                }
+            } else {
+                console.log(`[Twilio Webhook] No matching history found for SID: ${messageSid}`);
+            }
         }
 
         return NextResponse.json({ success: true, messageSid, status: messageStatus });

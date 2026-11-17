@@ -10,6 +10,7 @@ import {
   Coins,
   BadgeCheck,
   GraduationCap,
+  Smartphone,
   Headset,
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
@@ -17,6 +18,7 @@ import { createClient } from "@/lib/supabase/client";
 const nav = [
   { href: "/", label: "Dashboard", icon: LayoutDashboard },
   { href: "/send", label: "Send Report Card", icon: Send },
+  { href: "/invite", label: "Invite Parents", icon: Smartphone },
   { href: "/manage-classes", label: "Manage Classes", icon: GraduationCap },
   { href: "/history", label: "History", icon: History },
   { href: "/topup", label: "Credits", icon: Coins },
